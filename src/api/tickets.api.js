@@ -1,8 +1,8 @@
 import client from './client'
 import { ticketEndpoints } from './endpoints'
 
-export async function getTickets() {
-  const { data } = await client.get(ticketEndpoints.list)
+export async function getTickets(params) {
+  const { data } = await client.get(ticketEndpoints.list, { params })
   return data
 }
 

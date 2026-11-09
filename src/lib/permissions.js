@@ -1,7 +1,9 @@
 export const STATUS_TRANSITIONS = {
-  open: ['in progress'],
-  'in progress': ['resolved'],
-  resolved: ['closed'],
+  open: ['in_progress'],
+  in_progress: ['waiting_on_customer', 'resolved'],
+  waiting_on_customer: ['in_progress', 'resolved'],
+  resolved: ['closed', 'reopened'],
+  reopened: ['in_progress'],
   closed: [],
 }
 
@@ -36,10 +38,12 @@ export function canViewDashboard(user) {
 
 export function getAllowedNextStatuses(ticket, user) {
   const nextStatuses = STATUS_TRANSITIONS[ticket?.status] || []
+  const role = normalizeRole(user?.role)
+
   return nextStatuses.filter((status) => {
-    if (status === 'closed') {
+    if (status === 'closed' || status === 'reopened') {
       return canCloseOrReopen(ticket, user)
     }
-    return canResolve(user)
+    return role === 'agent' || role === 'admin'
   })
 }

@@ -1,6 +1,6 @@
 export const authEndpoints = {
-  login: '/users/login',
-  register: '/users/signup',
+  login: '/auth/login',
+  register: '/auth/register',
 }
 
 export const ticketEndpoints = {
@@ -16,4 +16,5 @@ export const commentEndpoints = {
   create: (ticketId) => `/comments/tickets/${ticketId}/comments`,
 }
 
+export const auditEndpoint = (ticketId) => `/tickets/${ticketId}/audit`
 export const dashboardEndpoint = '/admin/dashboard'

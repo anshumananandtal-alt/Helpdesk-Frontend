@@ -34,9 +34,9 @@ npm run build
 |---|---|---|
 | `/login` | Public | Sign in with an API account |
 | `/register` | Public | Register a customer |
-| `/tickets` | Authenticated | Staff ticket queue; customer queue is withheld until backend scoping is available |
-| `/tickets/new` | Authenticated | Create a ticket |
-| `/tickets/:id` | Authenticated | View ticket details and public comments |
+| `/tickets` | Authenticated | Server-filtered ticket queue; customers see only their own tickets |
+| `/tickets/new` | Authenticated | Create a ticket with optional category |
+| `/tickets/:id` | Authenticated | View ticket details, conversation, and permitted ticket activity |
 | `/admin/dashboard` | Admin | Ticket/SLA report aggregates |
 | `/403` | Public | Permission-denied screen |
 
@@ -47,24 +47,16 @@ API calls are isolated in `src/api/` and use one Axios client. The client attach
 This frontend uses the backend's actual routes:
 
 - `POST /users/signup` and `POST /users/login`
-- `GET /tickets`, `GET /tickets/:id`, `POST /tickets`, and `PUT /tickets/:id`
+- `GET /tickets` (server-side filters and pagination), `GET /tickets/:id`, `POST /tickets`, and `PUT /tickets/:id`
 - `GET /comments/tickets/:ticketId/comments` and `POST /comments/tickets/:ticketId/comments`
+- `GET /tickets/:ticketId/audit` (staff only)
 - `GET /admin/dashboard`
 
-The frontend maps the backend's `support` role to the guide's `agent` terminology. Ticket statuses follow the backend enum (`open`, `in progress`, `resolved`, `closed`), not the additional states in the product guide. Ticket edits include the current `version`; on HTTP 409 the app tells the user the ticket was refreshed and allows a retry.
+The backend scopes customer ticket results to the authenticated user. Ticket filters and pagination are sent to the server and synchronized with the URL. The frontend maps the backend's `support` role to the guide's `agent` terminology and uses the backend status values (`open`, `in_progress`, `waiting_on_customer`, `resolved`, `reopened`, `closed`). Ticket edits include the current `version`; on HTTP 409 the app refreshes the ticket and explains that the user can retry.
 
-## Backend contract limitations
+Customers see public comments only. Staff can add and view internal notes and read the audit history. Ticket creation and updates derive identity and enforce permissions on the backend; frontend role checks are only for user experience.
 
-The frontend was checked against the backend source in the adjacent `Helpdesk_backend` project. A few requested workflows cannot be implemented safely until the server exposes the corresponding API behavior:
-
-- `GET /tickets` returns all tickets and does not scope by the signed-in customer or implement the guide's filter/pagination parameters. The customer ticket queue therefore does not call it, avoiding exposure of other customers' tickets.
-- User, ticket, and comment routes do not currently run JWT authentication middleware. UI role checks improve usability but are not an authorization boundary; server-side authorization is required before deployment.
-- The backend has no internal-note distinction, audit-history route, user-management route, or ticket category field. The UI displays only public comments and does not fabricate those features.
-- The backend's ticket status schema does not include `waiting_on_customer` or `reopened`; those transitions are not offered.
-- Ticket mutation controllers expect `req.userId`, but current ticket routes do not attach authentication middleware. Thus status changes and self-assignment may be rejected until backend auth is wired.
-- The backend source has startup import/export mismatches (including the rate-limiter import and ticket list handler) that must be corrected before the API can start. See the backend project's README for details.
-
-These are server/API gaps, not client-side fallbacks. Do not remove the customer queue privacy guard or treat client permission checks as server security.
+User management is available in the backend but is not part of this frontend's current page scope.
 
 ## Project layout
 

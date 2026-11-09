@@ -32,7 +32,8 @@
 .report-value { font: 700 26px 'Plus Jakarta Sans'; margin-top: 22px; }
 .narrow-content { max-width: 920px; }
 .form-panel { margin-top: 24px; }
-.ticket-list-header, .ticket-list-row { display: grid; grid-template-columns: 2fr 1.2fr .8fr 1fr .9fr; gap: 14px; align-items: center; }
+.ticket-list-header, .ticket-list-row { display: grid; gap: 14px; align-items: center; }
+.staff-ticket-grid, .customer-ticket-grid { grid-template-columns: 2fr 1.2fr .8fr 1fr .9fr; }
 .ticket-list-header { padding: 14px 22px; background: #fbfcfe; color: #8994a6; font-size: 11px; font-weight: 700; }
 .ticket-list-row { padding: 16px 22px; border-top: 1px solid var(--line); text-decoration: none; color: inherit; }
 .ticket-list-row:hover { background: #fbfdfd; }
@@ -41,10 +42,12 @@
 .ticket-description { white-space: pre-wrap; line-height: 1.7; margin: 24px 0 !important; color: #48566c; }
 .comment-item { padding: 16px 0; border-bottom: 1px solid var(--line); display: grid; gap: 6px; white-space: pre-wrap; }
 .comment-item:last-of-type { border-bottom: 0; }
+.internal-note { padding: 16px; margin-top: 12px; border: 1px solid #f1d59a; border-radius: 9px; background: #fffaf0; }
+.audit-item { padding: 14px 0; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
 @media (max-width: 700px) {
   .ticket-list-header { display: none; }
-  .ticket-list-row { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .ticket-list-row > :nth-child(2) { display: none; }
+  .ticket-list-row { grid-template-columns: 1fr auto; gap: 8px; }
+  .ticket-list-row > :nth-child(2), .ticket-list-row > :nth-child(5) { display: none; }
   .list-pagination { flex-wrap: wrap; }
   .form-panel { padding: 18px; }
   .topbar-user { display: none; }

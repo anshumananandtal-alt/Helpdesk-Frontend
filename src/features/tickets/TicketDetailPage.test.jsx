@@ -59,4 +59,45 @@ describe('TicketDetailPage', () => {
     expect(getComments).not.toHaveBeenCalled()
     queryClient.clear()
   })
+
+  it('never renders internal comments in a customer view', async () => {
+    getTicket.mockResolvedValue({
+      _id: 'ticket-1',
+      title: 'My request',
+      description: 'Details',
+      status: 'open',
+      priority: 'low',
+      creator: 'customer-1',
+      version: 1,
+    })
+    getComments.mockResolvedValue([
+      { _id: 'public-1', text: 'Customer-visible reply', isInternal: false },
+      { _id: 'internal-1', text: 'Private staff note', isInternal: true },
+    ])
+    const store = configureStore({
+      reducer: { auth: sessionReducer },
+      preloadedState: {
+        auth: {
+          isAuthenticated: true,
+          token: 'customer-token',
+          user: { id: 'customer-1', role: 'customer' },
+        },
+      },
+    })
+    const queryClient = new QueryClient()
+
+    render(
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/tickets/ticket-1']}>
+            <Routes><Route path="/tickets/:id" element={<TicketDetailPage />} /></Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </Provider>,
+    )
+
+    expect(await screen.findByText('Customer-visible reply')).toBeInTheDocument()
+    expect(screen.queryByText('Private staff note')).not.toBeInTheDocument()
+    queryClient.clear()
+  })
 })
