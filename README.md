@@ -60,6 +60,8 @@ Customers see public comments only. Staff can add and view internal notes and re
 
 Admins can update user roles and account active state from the user management page. The backend prevents admins from changing their own access or removing the last active administrator. Dashboard reports include visual ticket-status and SLA-breach charts backed by the admin dashboard API.
 
+Admins can assign or unassign tickets from the ticket detail page. The assignee selector lists only active agents; the backend validates assignments, and agents can assign tickets to themselves.
+
 ## Project layout
 
 ```text

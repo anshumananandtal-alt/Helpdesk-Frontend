@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Box, Button, Chip, Divider, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Chip, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material'
 import { useForm } from 'react-hook-form'
 import { useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { getTicketAudit } from '../../api/audit.api'
 import { createComment, getComments } from '../../api/comments.api'
 import { getTicket, updateTicket } from '../../api/tickets.api'
+import { getUsers } from '../../api/users.api'
 import { EmptyState, ErrorState, LoadingState } from '../../components/common/DataState'
 import { canAssign, canViewInternalNotes, getAllowedNextStatuses, normalizeRole } from '../../lib/permissions'
 
@@ -50,8 +51,14 @@ export default function TicketDetailPage() {
   const ticketQuery = useQuery({ queryKey: ['ticket', id], queryFn: () => getTicket(id) })
   const ticket = ticketQuery.data
   const isCustomer = normalizeRole(user?.role) === 'customer'
+  const isAdmin = normalizeRole(user?.role) === 'admin'
   const isStaff = canViewInternalNotes(user)
   const isOwner = ticket && referenceId(ticket.creator) === referenceId(user?.id || user?._id)
+  const usersQuery = useQuery({
+    queryKey: ['admin', 'users'],
+    queryFn: getUsers,
+    enabled: isAdmin,
+  })
   const commentsQuery = useQuery({
     queryKey: ['comments', id],
     queryFn: () => getComments(id),
@@ -90,7 +97,7 @@ export default function TicketDetailPage() {
     },
   })
   const assignMutation = useMutation({
-    mutationFn: () => updateTicket(id, { assignee: user?.id || user?._id, version: ticketQuery.data.version }),
+    mutationFn: (assignee) => updateTicket(id, { assignee, version: ticketQuery.data.version }),
     onSuccess: (updated) => {
       queryClient.setQueryData(['ticket', id], updated)
       invalidateTicket()
@@ -111,6 +118,12 @@ export default function TicketDetailPage() {
   const publicComments = comments.filter((comment) => !comment.isInternal)
   const internalNotes = isStaff ? comments.filter((comment) => comment.isInternal) : []
   const mutationError = ticketMutation.error || assignMutation.error
+  const availableAgents = (usersQuery.data || []).filter((candidate) =>
+    candidate.role === 'agent' && candidate.isActive,
+  )
+  const currentAssigneeId = referenceId(ticket.assignee)
+  const currentAssigneeUnavailable = ticket.assignee &&
+    !availableAgents.some((candidate) => referenceId(candidate) === currentAssigneeId)
 
   return <Box className="content-wrap narrow-content">
     <Button onClick={() => navigate('/tickets')}>← Back to tickets</Button>
@@ -136,7 +149,28 @@ export default function TicketDetailPage() {
         <Typography>Change status:</Typography>
         {allowedStatuses.map((status) => <Button key={status} variant="outlined" disabled={ticketMutation.isPending} onClick={() => ticketMutation.mutate({ status })}>{displayStatus(status)}</Button>)}
       </Stack>}
-      {canAssign(user) && referenceId(ticket.assignee) !== referenceId(user?.id || user?._id) && <Button sx={{ mt: 2 }} variant="outlined" disabled={assignMutation.isPending} onClick={() => assignMutation.mutate()}>Assign to me</Button>}
+      {isAdmin && <Stack direction="row" alignItems="center" spacing={1} mt={2}>
+        <FormControl size="small" sx={{ minWidth: 240 }}>
+          <InputLabel id="ticket-assignee-label">Assign to agent</InputLabel>
+          <Select
+            labelId="ticket-assignee-label"
+            label="Assign to agent"
+            value={currentAssigneeId}
+            disabled={assignMutation.isPending || usersQuery.isPending || usersQuery.isError}
+            onChange={(event) => assignMutation.mutate(event.target.value || null)}
+          >
+            <MenuItem value="">Unassigned</MenuItem>
+            {currentAssigneeUnavailable && <MenuItem value={currentAssigneeId} disabled>
+              {ticket.assignee?.name || ticket.assignee?.email || 'Current assignee'} (unavailable)
+            </MenuItem>}
+            {availableAgents.map((agent) => <MenuItem key={referenceId(agent)} value={referenceId(agent)}>
+              {agent.name} ({agent.email})
+            </MenuItem>)}
+          </Select>
+        </FormControl>
+        {usersQuery.isError && <Alert severity="error">{usersQuery.error.message || 'Unable to load agents.'}</Alert>}
+      </Stack>}
+      {!isAdmin && canAssign(user) && referenceId(ticket.assignee) !== referenceId(user?.id || user?._id) && <Button sx={{ mt: 2 }} variant="outlined" disabled={assignMutation.isPending} onClick={() => assignMutation.mutate(user?.id || user?._id)}>Assign to me</Button>}
       {mutationError && <Alert sx={{ mt: 2 }} severity="error" role="alert">{mutationError.status === 409 ? 'This ticket was updated by someone else. The latest version has been refreshed; please retry.' : mutationError.message}</Alert>}
 
       <Divider sx={{ my: 3 }} />
