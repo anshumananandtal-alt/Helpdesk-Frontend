@@ -38,6 +38,7 @@ npm run build
 | `/tickets/new` | Authenticated | Create a ticket with optional category |
 | `/tickets/:id` | Authenticated | View ticket details, conversation, and permitted ticket activity |
 | `/admin/dashboard` | Admin | Ticket/SLA report aggregates |
+| `/admin/users` | Admin | Change user roles and deactivate/reactivate accounts |
 | `/403` | Public | Permission-denied screen |
 
 ## API integration
@@ -51,12 +52,13 @@ This frontend uses the backend's actual routes:
 - `GET /comments/tickets/:ticketId/comments` and `POST /comments/tickets/:ticketId/comments`
 - `GET /tickets/:ticketId/audit` (staff only)
 - `GET /admin/dashboard`
+- `GET /users` and `PATCH /users/:id` (admin only)
 
 The backend scopes customer ticket results to the authenticated user. Ticket filters and pagination are sent to the server and synchronized with the URL. The frontend maps the backend's `support` role to the guide's `agent` terminology and uses the backend status values (`open`, `in_progress`, `waiting_on_customer`, `resolved`, `reopened`, `closed`). Ticket edits include the current `version`; on HTTP 409 the app refreshes the ticket and explains that the user can retry.
 
 Customers see public comments only. Staff can add and view internal notes and read the audit history. Ticket creation and updates derive identity and enforce permissions on the backend; frontend role checks are only for user experience.
 
-User management is available in the backend but is not part of this frontend's current page scope.
+Admins can update user roles and account active state from the user management page. The backend prevents admins from changing their own access or removing the last active administrator. Dashboard reports include visual ticket-status and SLA-breach charts backed by the admin dashboard API.
 
 ## Project layout
 
@@ -67,7 +69,7 @@ src/
   auth/                   Session state and route guards
   components/             Shared layout and data states
   features/
-    admin/                Reports dashboard
+    admin/                Reports dashboard and user management
     auth/                 Login and customer registration
     tickets/              Ticket queue, create, and detail flows
   lib/                    Role/status permission helpers

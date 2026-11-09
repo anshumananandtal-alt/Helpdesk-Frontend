@@ -12,6 +12,9 @@ export default function DashboardShell() {
   const location = useLocation()
   const user = useSelector((state) => state.auth.user)
   const isAdminDashboard = location.pathname.startsWith('/admin/')
+  const title = location.pathname.startsWith('/admin/users')
+    ? 'Manage users'
+    : isAdminDashboard ? 'Reports dashboard' : 'Support tickets'
 
   const handleLogout = () => {
     dispatch(logout())
@@ -21,7 +24,7 @@ export default function DashboardShell() {
   return <Box className="app-shell">
     <Sidebar activePath={location.pathname} user={user} onLogout={handleLogout} />
     <Box component="main" className="main-content">
-      <Topbar title={isAdminDashboard ? 'Reports dashboard' : 'Support tickets'} onCreate={() => navigate('/tickets/new')} />
+      <Topbar title={title} onCreate={() => navigate('/tickets/new')} />
       <Outlet />
     </Box>
   </Box>

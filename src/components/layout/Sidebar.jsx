@@ -1,4 +1,4 @@
-import { Assignment, Dashboard, Logout } from '@mui/icons-material'
+import { Assignment, Dashboard, Group, Logout } from '@mui/icons-material'
 import { Avatar, Box, Button, Divider, Drawer, Stack, Typography } from '@mui/material'
 import { NavLink } from 'react-router-dom'
 import { canViewDashboard, normalizeRole } from '../../lib/permissions'
@@ -17,6 +17,7 @@ export default function Sidebar({ activePath, user, onLogout }) {
   const navigation = [
     { label: 'Tickets', path: '/tickets', icon: <Assignment /> },
     ...(canViewDashboard(user) ? [{ label: 'Reports', path: '/admin/dashboard', icon: <Dashboard /> }] : []),
+    ...(canViewDashboard(user) ? [{ label: 'Users', path: '/admin/users', icon: <Group /> }] : []),
   ]
 
   return <Drawer variant="permanent" className="sidebar">

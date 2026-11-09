@@ -3,6 +3,7 @@ import ProtectedRoute from '../auth/ProtectedRoute'
 import PublicRoute from '../auth/PublicRoute'
 import DashboardShell from '../features/admin/DashboardShell'
 import DashboardPage from '../features/admin/DashboardPage'
+import UsersPage from '../features/admin/UsersPage'
 import LoginPage from '../features/auth/LoginPage'
 import RegisterPage from '../features/auth/RegisterPage'
 import TicketDetailPage from '../features/tickets/TicketDetailPage'
@@ -32,6 +33,7 @@ export default function AppRouter() {
     <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
       <Route element={<DashboardShell />}>
         <Route path="/admin/dashboard" element={<DashboardPage />} />
+        <Route path="/admin/users" element={<UsersPage />} />
       </Route>
     </Route>
     <Route path="*" element={<Navigate to="/tickets" replace />} />

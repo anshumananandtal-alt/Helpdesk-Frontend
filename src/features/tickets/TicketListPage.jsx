@@ -23,6 +23,7 @@ function displayStatus(status) {
 export default function TicketListPage() {
   const user = useSelector((state) => state.auth.user)
   const isStaff = ['agent', 'admin'].includes(normalizeRole(user?.role))
+  const isAdmin = normalizeRole(user?.role) === 'admin' 
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
   const [assigneeInput, setAssigneeInput] = useState(searchParams.get('assignee') || '')
@@ -122,16 +123,24 @@ export default function TicketListPage() {
       {ticketsQuery.isSuccess && Boolean(tickets.length) && <>
         <Box className={`ticket-list-header ${isStaff ? 'staff-ticket-grid' : 'customer-ticket-grid'}`}>
           <Typography>Ticket</Typography>
-          {isStaff ? <Typography>Requester</Typography> : <Typography>Assignee</Typography>}
-          <Typography>Priority</Typography><Typography>Status</Typography><Typography>Updated</Typography>
+          {isStaff && <Typography>Requester</Typography>}
+          {isAdmin && <Typography>Assignee</Typography>}
+          <Typography>Priority</Typography><Typography>Status</Typography><Typography>Breached</Typography><Typography>Updated</Typography>
         </Box>
         {tickets.map((ticket) => <Box className={`ticket-list-row ${isStaff ? 'staff-ticket-grid' : 'customer-ticket-grid'}`} key={ticket._id} component={Link} to={`/tickets/${ticket._id}`}>
           <Box><Typography className="ticket-id">#{ticket._id.slice(-6)}</Typography><Typography className="ticket-title">{ticket.title}</Typography></Box>
-          <Typography className="muted-cell">{isStaff
-            ? ticket.creator?.name || ticket.creator?.email || 'Unknown'
-            : ticket.assignee?.name || ticket.assignee?.email || 'Unassigned'}</Typography>
+          {
+            isStaff && <Typography className="muted-cell">{ticket.creator?.name || ticket.creator?.email || 'Unknown'}</Typography>
+          }
+          {isAdmin && <Typography className="muted-cell">{ticket.assignee?.name || ticket.assignee?.email || 'Unassigned'}</Typography>}
           <Chip size="small" label={ticket.priority} />
           <Chip size="small" label={displayStatus(ticket.status)} color={ticket.status === 'resolved' || ticket.status === 'closed' ? 'success' : 'primary'} />
+          <Chip
+            className="breached-chip"
+            size="small"
+            label={ticket.breached ? 'Yes' : 'No'}
+            color={ticket.breached ? 'error' : 'success'}
+          />
           <Typography className="muted-cell">{displayDate(ticket.updatedAt)}</Typography>
         </Box>)}
         <Stack className="list-pagination" direction="row" justifyContent="space-between" alignItems="center">
