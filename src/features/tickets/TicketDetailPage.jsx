@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Alert, Box, Button, Chip, Divider, FormControl, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material'
+import DeleteIcon from '@mui/icons-material/Delete'
+import { Alert, Box, Button, Chip, Divider, FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material'
 import { useForm } from 'react-hook-form'
 import { useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
 import { getTicketAudit } from '../../api/audit.api'
 import { createComment, getComments } from '../../api/comments.api'
-import { getTicket, updateTicket } from '../../api/tickets.api'
+import { deleteTicketAttachment, getTicket, getTicketAttachment, updateTicket } from '../../api/tickets.api'
 import { getUsers } from '../../api/users.api'
 import { EmptyState, ErrorState, LoadingState } from '../../components/common/DataState'
 import { canAssign, canViewInternalNotes, getAllowedNextStatuses, normalizeRole } from '../../lib/permissions'
@@ -42,12 +43,71 @@ function auditSummary(entry) {
   return `${entry.field} changed from ${oldValue} to ${newValue}`
 }
 
+function TicketAttachment({ ticketId, fileName, index, onDelete, deleting }) {
+  const [attachmentUrl, setAttachmentUrl] = useState('')
+  const [isImage, setIsImage] = useState(false)
+  const [error, setError] = useState('')
+  const extension = fileName?.match(/\.(pdf|docx?)$/i)?.[0] || ''
+  const attachmentName = `Attachment ${index + 1}${extension}`
+
+  useEffect(() => {
+    let active = true
+    let objectUrl
+
+    getTicketAttachment(ticketId, index)
+      .then((attachment) => {
+        objectUrl = URL.createObjectURL(attachment)
+        if (active) {
+          setAttachmentUrl(objectUrl)
+          setIsImage(attachment.type.startsWith('image/'))
+        }
+        else URL.revokeObjectURL(objectUrl)
+      })
+      .catch((attachmentError) => {
+        if (active) setError(attachmentError.message || 'Unable to load this attachment.')
+      })
+
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [ticketId, index])
+
+  if (error) return <Alert severity="error">{error}</Alert>
+  if (!attachmentUrl) return <Typography color="text.secondary">Loading attachment…</Typography>
+
+  if (!isImage) {
+    return <Stack direction="row" spacing={2} alignItems="center">
+      <Typography>{attachmentName}</Typography>
+      <a href={attachmentUrl} target="_blank" rel="noreferrer">Open</a>
+      <a href={attachmentUrl} download={attachmentName}>Download</a>
+      <IconButton color="error" aria-label={`Delete ${attachmentName}`} title={`Delete ${attachmentName}`} disabled={deleting} onClick={() => onDelete(index)}>
+        <DeleteIcon />
+      </IconButton>
+    </Stack>
+  }
+
+  return <Stack direction="row" spacing={2} alignItems="flex-start">
+    <a href={attachmentUrl} target="_blank" rel="noreferrer">
+      <img
+        src={attachmentUrl}
+        alt={attachmentName}
+        style={{ display: 'block', maxWidth: '100%', maxHeight: 320, objectFit: 'contain' }}
+      />
+    </a>
+    <IconButton color="error" aria-label={`Delete ${attachmentName}`} title={`Delete ${attachmentName}`} disabled={deleting} onClick={() => onDelete(index)}>
+      <DeleteIcon />
+    </IconButton>
+  </Stack>
+}
+
 export default function TicketDetailPage() {
   const { id } = useParams()
   const user = useSelector((state) => state.auth.user)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [commentType, setCommentType] = useState('public')
+  const [ticketFiles, setTicketFiles] = useState([])
   const ticketQuery = useQuery({ queryKey: ['ticket', id], queryFn: () => getTicket(id) })
   const ticket = ticketQuery.data
   const isCustomer = normalizeRole(user?.role) === 'customer'
@@ -96,6 +156,31 @@ export default function TicketDetailPage() {
       if (error.status === 409) invalidateTicket()
     },
   })
+  const fileUploadMutation = useMutation({
+    mutationFn: (files) => {
+      const formData = new FormData()
+      files.forEach((file) => formData.append('image', file))
+      formData.append('version', String(ticketQuery.data.version))
+      return updateTicket(id, formData)
+    },
+    onSuccess: (updated) => {
+      setTicketFiles([])
+      queryClient.setQueryData(['ticket', id], updated)
+      invalidateTicket()
+    },
+    onError: (error) => {
+      if (error.status === 409) invalidateTicket()
+    },
+  })
+  const attachmentDeleteMutation = useMutation({
+    mutationFn: (index) => deleteTicketAttachment(id, index),
+    onSuccess: () => {
+      invalidateTicket()
+    },
+    onError: (error) => {
+      if (error.status === 409) invalidateTicket()
+    },
+  })
   const assignMutation = useMutation({
     mutationFn: (assignee) => updateTicket(id, { assignee, version: ticketQuery.data.version }),
     onSuccess: (updated) => {
@@ -137,6 +222,22 @@ export default function TicketDetailPage() {
         <Chip label={slaLabel(ticket)} color={ticket.breached ? 'error' : 'default'} />
       </Stack>
       <Typography className="ticket-description">{ticket.description}</Typography>
+      {ticket.fileName?.length > 0 && <Box sx={{ mt: 2 }}>
+        <Typography className="panel-title">Attachments</Typography>
+        <Stack spacing={2} mt={1}>
+          {ticket.fileName.map((fileName, index) => (
+            <TicketAttachment
+              key={`${fileName}-${index}`}
+              ticketId={id}
+              fileName={fileName}
+              index={index}
+              onDelete={(attachmentIndex) => attachmentDeleteMutation.mutate(attachmentIndex)}
+              deleting={attachmentDeleteMutation.isPending}
+            />
+          ))}
+        {attachmentDeleteMutation.isError && <Alert severity="error" role="alert">{attachmentDeleteMutation.error.message}</Alert>}
+        </Stack>
+      </Box>}
       <Box className="detail-meta">
         <Typography><strong>Requester</strong> {ticket.creator?.name || ticket.creator?.email || referenceId(ticket.creator)}</Typography>
         <Typography><strong>Assignee</strong> {ticket.assignee?.name || ticket.assignee?.email || (ticket.assignee ? referenceId(ticket.assignee) : 'Unassigned')}</Typography>
@@ -149,6 +250,24 @@ export default function TicketDetailPage() {
         <Typography>Change status:</Typography>
         {allowedStatuses.map((status) => <Button key={status} variant="outlined" disabled={ticketMutation.isPending} onClick={() => ticketMutation.mutate({ status })}>{displayStatus(status)}</Button>)}
       </Stack>}
+      <Stack direction="column" spacing={1} mt={2}>
+        <Typography>Attach files to this ticket</Typography>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+          multiple
+          onChange={(event) => setTicketFiles(Array.from(event.target.files || []))}
+        />
+        {ticketFiles.length > 0 && <Typography variant="body2" color="text.secondary">{ticketFiles.map((file) => file.name).join(', ')}</Typography>}
+        <Button
+          variant="outlined"
+          disabled={fileUploadMutation.isPending || ticketFiles.length === 0}
+          onClick={() => fileUploadMutation.mutate(ticketFiles)}
+        >
+          {fileUploadMutation.isPending ? 'Uploading…' : 'Upload files'}
+        </Button>
+        {fileUploadMutation.isError && <Alert severity="error" role="alert">{fileUploadMutation.error.message}</Alert>}
+      </Stack>
       {isAdmin && <Stack direction="row" alignItems="center" spacing={1} mt={2}>
         <FormControl size="small" sx={{ minWidth: 240 }}>
           <InputLabel id="ticket-assignee-label">Assign to agent</InputLabel>

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
@@ -18,6 +19,7 @@ export default function CreateTicketPage() {
   const user = useSelector((state) => state.auth.user)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [selectedFiles, setSelectedFiles] = useState([])
   const {
     register,
     handleSubmit,
@@ -31,18 +33,50 @@ export default function CreateTicketPage() {
     },
   })
 
+  const handleSubmitTicket = (values) => {
+    if (!selectedFiles.length) {
+      mutation.mutate(values)
+      return
+    }
+
+    const formData = new FormData()
+    Object.entries(values).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value)
+      }
+    })
+    selectedFiles.forEach((file) => formData.append('image', file))
+    mutation.mutate(formData)
+  }
+
   return <Box className="content-wrap narrow-content">
     <Typography className="section-title">Create a ticket</Typography>
     <Typography className="section-subtitle">Describe the issue and choose its urgency.</Typography>
     <Paper className="form-panel" elevation={0}>
-      <Stack component="form" spacing={2.5} onSubmit={handleSubmit((values) => mutation.mutate(values))} noValidate>
+      <Stack component="form" spacing={2.5} onSubmit={handleSubmit(handleSubmitTicket)} noValidate>
         <TextField label="Title" required fullWidth {...register('title')} error={Boolean(errors.title)} helperText={errors.title?.message} />
         <TextField label="Description" required multiline minRows={5} fullWidth {...register('description')} error={Boolean(errors.description)} helperText={errors.description?.message} />
         <TextField label="Category" fullWidth {...register('category')} error={Boolean(errors.category)} helperText={errors.category?.message} />
         <TextField label="Priority" select defaultValue="medium" {...register('priority')} error={Boolean(errors.priority)} helperText={errors.priority?.message}>
           {['low', 'medium', 'high', 'urgent'].map((priority) => <MenuItem key={priority} value={priority}>{priority}</MenuItem>)}
         </TextField>
-          {mutation.isError && <Alert severity="error" role="alert">{mutation.error.message}</Alert>}
+
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Attach screenshots or reference files</Typography>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+            multiple
+            onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))}
+          />
+          {selectedFiles.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              {selectedFiles.map((file) => file.name).join(', ')}
+            </Typography>
+          )}
+        </Box>
+
+        {mutation.isError && <Alert severity="error" role="alert">{mutation.error.message}</Alert>}
         <Box><Button type="submit" variant="contained" disabled={mutation.isPending || !(user?.id || user?._id)}>{mutation.isPending ? 'Creating…' : 'Create ticket'}</Button></Box>
       </Stack>
     </Paper>

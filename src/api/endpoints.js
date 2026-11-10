@@ -6,6 +6,8 @@ export const authEndpoints = {
 export const ticketEndpoints = {
   list: '/tickets',
   detail: (id) => `/tickets/${id}`,
+  attachment: (id, index) => `/tickets/${id}/images/${index}`,
+  deleteAttachment: (id, index) => `/tickets/${id}/images/${index}`,
   create: '/tickets',
   update: (id) => `/tickets/${id}`,
   remove: (id) => `/tickets/${id}`,
