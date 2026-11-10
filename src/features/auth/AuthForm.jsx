@@ -18,7 +18,10 @@ const registerSchema = z.object({
   name: z.string().trim().min(2, 'Enter your full name.'),
   email: z.string().email('Enter a valid email address.'),
   password: z.string().min(8, 'Use at least 8 characters.'),
-})
+  confirmPassword: z.string().min(1, 'Confirm your password.'),
+  }).refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match.',
+  })
 
 export default function AuthForm({ mode }) {
   const isRegister = mode === 'register'
@@ -58,6 +61,9 @@ export default function AuthForm({ mode }) {
         {isRegister && <TextField label="Full name" autoComplete="name" error={Boolean(errors.name)} helperText={errors.name?.message} {...registerField('name')} fullWidth />}
         <TextField label="Email" type="email" autoComplete="email" error={Boolean(errors.email)} helperText={errors.email?.message} {...registerField('email')} fullWidth />
         <TextField label="Password" type="password" autoComplete={isRegister ? 'new-password' : 'current-password'} error={Boolean(errors.password)} helperText={errors.password?.message} {...registerField('password')} fullWidth />
+        {
+          isRegister && <TextField label="Confirm password" type="password" autoComplete="new-password" error={Boolean(errors.confirmPassword)} helperText={errors.confirmPassword?.message} {...registerField('confirmPassword')} fullWidth />
+        }
         <Button type="submit" variant="contained" className="auth-submit" fullWidth disabled={isSubmitting}>{isSubmitting ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in'}</Button>
       </Box>
       <Stack direction="row" justifyContent="center" spacing={0.5} className="auth-switch">
