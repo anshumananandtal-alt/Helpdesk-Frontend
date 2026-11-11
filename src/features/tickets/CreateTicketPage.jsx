@@ -7,6 +7,10 @@ import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { createTicket } from '../../api/tickets.api'
+import { colors } from '../../app/theme'
+
+const pageContentSx = { maxWidth: 920, mx: 'auto', p: '40px clamp(25px, 4vw, 56px)', '@media (max-width: 700px)': { p: '25px 15px' } }
+const sectionSubtitleSx = { color: colors.muted, fontSize: 12, mt: '5px' }
 
 const schema = z.object({
   title: z.string().trim().min(5, 'Use at least 5 characters for the title.'),
@@ -49,10 +53,10 @@ export default function CreateTicketPage() {
     mutation.mutate(formData)
   }
 
-  return <Box className="content-wrap narrow-content">
-    <Typography className="section-title">Create a ticket</Typography>
-    <Typography className="section-subtitle">Describe the issue and choose its urgency.</Typography>
-    <Paper className="form-panel" elevation={0}>
+  return <Box sx={pageContentSx}>
+    <Typography sx={{ font: "700 18px 'Plus Jakarta Sans'", letterSpacing: '-.4px' }}>Create a ticket</Typography>
+    <Typography sx={sectionSubtitleSx}>Describe the issue and choose its urgency.</Typography>
+    <Paper elevation={0} sx={{ p: '24px', mt: '24px', border: `1px solid ${colors.line}`, borderRadius: '11px', '@media (max-width: 700px)': { p: '18px' } }}>
       <Stack component="form" spacing={2.5} onSubmit={handleSubmit(handleSubmitTicket)} noValidate>
         <TextField label="Title" required fullWidth {...register('title')} error={Boolean(errors.title)} helperText={errors.title?.message} />
         <TextField label="Description" required multiline minRows={5} fullWidth {...register('description')} error={Boolean(errors.description)} helperText={errors.description?.message} />
@@ -63,12 +67,16 @@ export default function CreateTicketPage() {
 
         <Box>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Attach screenshots or reference files</Typography>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
-            multiple
-            onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))}
-          />
+          <Button component="label" variant="outlined">
+            Choose files
+            <input
+              hidden
+              type="file"
+              accept="image/png,image/jpeg,application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+              multiple
+              onChange={(event) => setSelectedFiles(Array.from(event.target.files || []))}
+            />
+          </Button>
           {selectedFiles.length > 0 && (
             <Typography variant="body2" color="text.secondary">
               {selectedFiles.map((file) => file.name).join(', ')}

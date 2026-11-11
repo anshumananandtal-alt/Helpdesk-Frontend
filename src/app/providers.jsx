@@ -2,7 +2,9 @@ import { Provider } from 'react-redux'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useDispatch } from 'react-redux'
+import { CssBaseline, ThemeProvider } from '@mui/material'
 import { store } from './store'
+import theme from './theme'
 import { logout } from '../auth/sessionSlice'
 
 const queryClient = new QueryClient({
@@ -27,5 +29,8 @@ function SessionEvents({ children }) {
 }
 
 export default function AppProviders({ children }) {
-  return <Provider store={store}><SessionEvents><QueryClientProvider client={queryClient}>{children}</QueryClientProvider></SessionEvents></Provider>
+  return <ThemeProvider theme={theme}>
+    <CssBaseline />
+    <Provider store={store}><SessionEvents><QueryClientProvider client={queryClient}>{children}</QueryClientProvider></SessionEvents></Provider>
+  </ThemeProvider>
 }

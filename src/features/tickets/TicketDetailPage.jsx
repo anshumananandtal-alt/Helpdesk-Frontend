@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { Alert, Box, Button, Chip, Divider, FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, Chip, Divider, FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography, Link } from '@mui/material'
 import { useForm } from 'react-hook-form'
 import { useSelector } from 'react-redux'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -13,8 +13,15 @@ import { deleteTicketAttachment, getTicket, getTicketAttachment, updateTicket } 
 import { getUsers } from '../../api/users.api'
 import { EmptyState, ErrorState, LoadingState } from '../../components/common/DataState'
 import { canAssign, canViewInternalNotes, getAllowedNextStatuses, normalizeRole } from '../../lib/permissions'
+import { colors } from '../../app/theme'
 
 const commentSchema = z.object({ text: z.string().trim().min(1, 'Write a comment first.') })
+const pageContentSx = { maxWidth: 1440, mx: 'auto', p: '40px clamp(25px, 4vw, 56px)', '@media (max-width: 650px)': { p: '25px 15px' } }
+const narrowContentSx = { ...pageContentSx, maxWidth: 920 }
+const formPanelSx = { p: '24px', mt: '24px', border: `1px solid ${colors.line}`, borderRadius: '11px', '@media (max-width: 700px)': { p: '18px' } }
+const sectionTitleSx = { font: "700 18px 'Plus Jakarta Sans'", letterSpacing: '-.4px' }
+const panelTitleSx = { font: "800 15px 'Plus Jakarta Sans'" }
+const mutedCellSx = { fontSize: 11, color: '#6f7a8f' }
 
 function displayStatus(status) {
   return status.replaceAll('_', ' ')
@@ -77,24 +84,25 @@ function TicketAttachment({ ticketId, fileName, index, onDelete, deleting }) {
   if (!attachmentUrl) return <Typography color="text.secondary">Loading attachment…</Typography>
 
   if (!isImage) {
-    return <Stack direction="row" spacing={2} alignItems="center">
+    return <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }} useFlexGap>
       <Typography>{attachmentName}</Typography>
-      <a href={attachmentUrl} target="_blank" rel="noreferrer">Open</a>
-      <a href={attachmentUrl} download={attachmentName}>Download</a>
+      <Link href={attachmentUrl} target="_blank" rel="noreferrer">Open</Link>
+      <Link href={attachmentUrl} download={attachmentName}>Download</Link>
       <IconButton color="error" aria-label={`Delete ${attachmentName}`} title={`Delete ${attachmentName}`} disabled={deleting} onClick={() => onDelete(index)}>
         <DeleteIcon />
       </IconButton>
     </Stack>
   }
 
-  return <Stack direction="row" spacing={2} alignItems="flex-start">
-    <a href={attachmentUrl} target="_blank" rel="noreferrer">
-      <img
+  return <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap' }} useFlexGap>
+    <Link href={attachmentUrl} target="_blank" rel="noreferrer">
+      <Box
+        component="img"
         src={attachmentUrl}
         alt={attachmentName}
-        style={{ display: 'block', maxWidth: '100%', maxHeight: 320, objectFit: 'contain' }}
+        sx={{ display: 'block', maxWidth: '100%', maxHeight: 320, objectFit: 'contain' }}
       />
-    </a>
+    </Link>
     <IconButton color="error" aria-label={`Delete ${attachmentName}`} title={`Delete ${attachmentName}`} disabled={deleting} onClick={() => onDelete(index)}>
       <DeleteIcon />
     </IconButton>
@@ -193,9 +201,9 @@ export default function TicketDetailPage() {
   })
 
   if (ticketQuery.isPending) return <LoadingState label="Loading ticket…" />
-  if (ticketQuery.isError) return <Box className="content-wrap"><ErrorState error={ticketQuery.error} onRetry={() => ticketQuery.refetch()} /></Box>
+  if (ticketQuery.isError) return <Box sx={pageContentSx}><ErrorState error={ticketQuery.error} onRetry={() => ticketQuery.refetch()} /></Box>
   if (isCustomer && !isOwner) {
-    return <Box className="content-wrap"><ErrorState error={{ message: 'You do not have permission to view this ticket.' }} onRetry={() => navigate('/tickets')} /></Box>
+    return <Box sx={pageContentSx}><ErrorState error={{ message: 'You do not have permission to view this ticket.' }} onRetry={() => navigate('/tickets')} /></Box>
   }
 
   const allowedStatuses = getAllowedNextStatuses(ticket, user)
@@ -210,20 +218,42 @@ export default function TicketDetailPage() {
   const currentAssigneeUnavailable = ticket.assignee &&
     !availableAgents.some((candidate) => referenceId(candidate) === currentAssigneeId)
 
-  return <Box className="content-wrap narrow-content">
+  return <Box sx={narrowContentSx}>
     <Button onClick={() => navigate('/tickets')}>← Back to tickets</Button>
-    <Paper className="form-panel ticket-detail-panel" elevation={0}>
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
-        <Box><Typography className="ticket-id">Ticket #{ticket._id.slice(-6)}</Typography><Typography className="section-title">{ticket.title}</Typography></Box>
-        <Chip label={displayStatus(ticket.status)} color={ticket.status === 'resolved' || ticket.status === 'closed' ? 'success' : 'primary'} />
-      </Stack>
-      <Stack direction="row" spacing={1} mt={2} flexWrap="wrap" useFlexGap>
+    <Paper elevation={0} sx={formPanelSx}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography sx={{ color: '#18a0a0', fontSize: 10, fontWeight: 700, mb: '3px' }}>
+            Ticket #{ticket._id.slice(-6)}
+          </Typography>
+          <Typography sx={sectionTitleSx}>{ticket.title}</Typography>
+        </Box>
+
+        <Chip
+          label={displayStatus(ticket.status)}
+          color={
+            ticket.status === 'resolved' || ticket.status === 'closed'
+              ? 'success'
+              : 'primary'
+          }
+        />
+      </Box>
+      <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap' }} useFlexGap>
         <Chip label={`Priority: ${ticket.priority}`} />
         <Chip label={slaLabel(ticket)} color={ticket.breached ? 'error' : 'default'} />
       </Stack>
-      <Typography className="ticket-description">{ticket.description}</Typography>
+      <Typography sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.7, my: '24px', color: '#48566c' }}>{ticket.description}</Typography>
       {ticket.fileName?.length > 0 && <Box sx={{ mt: 2 }}>
-        <Typography className="panel-title">Attachments</Typography>
+        <Typography sx={panelTitleSx} variant="h6">
+          Attachments
+        </Typography>
         <Stack spacing={2} mt={1}>
           {ticket.fileName.map((fileName, index) => (
             <TicketAttachment
@@ -238,26 +268,30 @@ export default function TicketDetailPage() {
         {attachmentDeleteMutation.isError && <Alert severity="error" role="alert">{attachmentDeleteMutation.error.message}</Alert>}
         </Stack>
       </Box>}
-      <Box className="detail-meta">
-        <Typography><strong>Requester</strong> {ticket.creator?.name || ticket.creator?.email || referenceId(ticket.creator)}</Typography>
-        <Typography><strong>Assignee</strong> {ticket.assignee?.name || ticket.assignee?.email || (ticket.assignee ? referenceId(ticket.assignee) : 'Unassigned')}</Typography>
-        <Typography><strong>Category</strong> {ticket.category || '—'}</Typography>
-        <Typography><strong>Version</strong> {ticket.version}</Typography>
-        <Typography><strong>Updated</strong> {ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString() : '—'}</Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '13px', bgcolor: '#f8fafc', borderRadius: '9px', p: '15px', '& p': { fontSize: 12, color: '#59677c' }, '@media (max-width: 520px)': { gridTemplateColumns: '1fr' } }}>
+        <Typography><Box component="strong">Requester</Box> {ticket.creator?.name || ticket.creator?.email || referenceId(ticket.creator)}</Typography>
+        <Typography><Box component="strong">Assignee</Box> {ticket.assignee?.name || ticket.assignee?.email || (ticket.assignee ? referenceId(ticket.assignee) : 'Unassigned')}</Typography>
+        <Typography><Box component="strong">Category</Box> {ticket.category || '—'}</Typography>
+        <Typography><Box component="strong">Version</Box> {ticket.version}</Typography>
+        <Typography><Box component="strong">Updated</Box> {ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString() : '—'}</Typography>
       </Box>
 
-      {allowedStatuses.length > 0 && <Stack direction="row" alignItems="center" spacing={1} mt={2} flexWrap="wrap" useFlexGap>
+      {allowedStatuses.length > 0 && <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', alignItems: 'center' }} useFlexGap>
         <Typography>Change status:</Typography>
         {allowedStatuses.map((status) => <Button key={status} variant="outlined" disabled={ticketMutation.isPending} onClick={() => ticketMutation.mutate({ status })}>{displayStatus(status)}</Button>)}
       </Stack>}
-      <Stack direction="column" spacing={1} mt={2}>
-        <Typography>Attach files to this ticket</Typography>
-        <input
-          type="file"
-          accept="image/png,image/jpeg,application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
-          multiple
-          onChange={(event) => setTicketFiles(Array.from(event.target.files || []))}
-        />
+      <Stack direction="column" spacing={1} sx={{ mt: 2, flexWrap: 'wrap' }}>
+        <Typography sx={panelTitleSx} variant="h6">Attach files to this ticket</Typography>
+        <Button component="label" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
+          Choose files
+          <input
+            hidden
+            type="file"
+            accept="image/png,image/jpeg,application/pdf,.pdf,application/msword,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+            multiple
+            onChange={(event) => setTicketFiles(Array.from(event.target.files || []))}
+          />
+        </Button>
         {ticketFiles.length > 0 && <Typography variant="body2" color="text.secondary">{ticketFiles.map((file) => file.name).join(', ')}</Typography>}
         <Button
           variant="outlined"
@@ -268,7 +302,7 @@ export default function TicketDetailPage() {
         </Button>
         {fileUploadMutation.isError && <Alert severity="error" role="alert">{fileUploadMutation.error.message}</Alert>}
       </Stack>
-      {isAdmin && <Stack direction="row" alignItems="center" spacing={1} mt={2}>
+      {isAdmin && <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 4, flexWrap: 'wrap' }}useFlexGap>
         <FormControl size="small" sx={{ minWidth: 240 }}>
           <InputLabel id="ticket-assignee-label">Assign to agent</InputLabel>
           <Select
@@ -293,14 +327,16 @@ export default function TicketDetailPage() {
       {mutationError && <Alert sx={{ mt: 2 }} severity="error" role="alert">{mutationError.status === 409 ? 'This ticket was updated by someone else. The latest version has been refreshed; please retry.' : mutationError.message}</Alert>}
 
       <Divider sx={{ my: 3 }} />
-      <Typography className="panel-title">Conversation</Typography>
+      <Typography sx={panelTitleSx} variant="h6">
+        Conversation
+      </Typography>
       {commentsQuery.isPending && <LoadingState label="Loading comments…" />}
       {commentsQuery.isError && <ErrorState error={commentsQuery.error} onRetry={() => commentsQuery.refetch()} />}
       {commentsQuery.isSuccess && !publicComments.length && <EmptyState>No public comments yet.</EmptyState>}
-      {publicComments.map((comment) => <Box className="comment-item" key={comment._id}>
+      {publicComments.map((comment) => <Box key={comment._id} sx={{ p: '16px 0', borderBottom: `1px solid ${colors.line}`, display: 'grid', gap: '6px', whiteSpace: 'pre-wrap', '&:last-of-type': { borderBottom: 0 } }}>
         <Typography fontWeight={700}>{comment.author?.name || comment.author?.email || 'User'}</Typography>
         <Typography>{comment.text}</Typography>
-        <Typography className="muted-cell">{comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ''}</Typography>
+        <Typography sx={mutedCellSx}>{comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ''}</Typography>
       </Box>)}
       {commentMutation.isError && <Alert severity="error" role="alert">{commentMutation.error.message}</Alert>}
       <Stack component="form" spacing={1.5} mt={2} onSubmit={handleSubmit((values) => commentMutation.mutate(values))} noValidate>
@@ -314,22 +350,26 @@ export default function TicketDetailPage() {
 
       {isStaff && <>
         <Divider sx={{ my: 3 }} />
-        <Typography className="panel-title">Internal notes</Typography>
+        <Typography sx={panelTitleSx} variant="h6">
+          Internal notes
+        </Typography>
         {commentsQuery.isSuccess && !internalNotes.length && <EmptyState>No internal notes yet.</EmptyState>}
-        {internalNotes.map((note) => <Box className="comment-item internal-note" key={note._id}>
+        {internalNotes.map((note) => <Box key={note._id} sx={{ p: '16px', mt: '12px', border: '1px solid #f1d59a', borderRadius: '9px', bgcolor: '#fffaf0', display: 'grid', gap: '6px', whiteSpace: 'pre-wrap' }}>
           <Typography fontWeight={700}>{note.author?.name || note.author?.email || 'Staff member'} · Internal</Typography>
           <Typography>{note.text}</Typography>
-          <Typography className="muted-cell">{note.createdAt ? new Date(note.createdAt).toLocaleString() : ''}</Typography>
+          <Typography sx={mutedCellSx}>{note.createdAt ? new Date(note.createdAt).toLocaleString() : ''}</Typography>
         </Box>)}
 
         <Divider sx={{ my: 3 }} />
-        <Typography className="panel-title">Audit history</Typography>
+        <Typography sx={panelTitleSx} variant="h6">
+          Audit history
+        </Typography>
         {auditQuery.isPending && <LoadingState label="Loading audit history…" />}
         {auditQuery.isError && <ErrorState error={auditQuery.error} onRetry={() => auditQuery.refetch()} />}
         {auditQuery.isSuccess && !auditQuery.data.length && <EmptyState>No audit history yet.</EmptyState>}
-        {auditQuery.data?.map((entry) => <Box className="audit-item" key={entry._id}>
+        {auditQuery.data?.map((entry) => <Box key={entry._id} sx={{ p: '14px 0', borderBottom: `1px solid ${colors.line}`, display: 'grid', gap: '6px' }}>
           <Typography fontWeight={700}>{auditSummary(entry)}</Typography>
-          <Typography className="muted-cell">{entry.changedBy?.name || entry.changedBy?.email || 'System'} · {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : ''}</Typography>
+          <Typography sx={mutedCellSx}>{entry.changedBy?.name || entry.changedBy?.email || 'System'} · {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : ''}</Typography>
         </Box>)}
       </>}
     </Paper>

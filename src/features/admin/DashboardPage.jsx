@@ -2,6 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Box, Paper, Typography } from '@mui/material'
 import { getDashboard } from '../../api/dashboard.api'
 import { EmptyState, ErrorState, LoadingState } from '../../components/common/DataState'
+import { colors } from '../../app/theme'
+
+const pageContentSx = { maxWidth: 1440, mx: 'auto', p: '40px clamp(25px, 4vw, 56px)', '@media (max-width: 650px)': { p: '25px 15px' } }
+const sectionTitleSx = { font: "700 18px 'Plus Jakarta Sans'", letterSpacing: '-.4px' }
+const sectionSubtitleSx = { color: colors.muted, fontSize: 12, mt: '5px' }
+const panelTitleSx = { font: "800 15px 'Plus Jakarta Sans'" }
+const reportCardSx = { p: '24px', border: `1px solid ${colors.line}`, borderRadius: '11px' }
 
 function formatLabel(value) {
   return String(value).replaceAll('_', ' ')
@@ -13,25 +20,25 @@ function BarChart({ title, rows = [], labelKey, emptyMessage, color }) {
     .map((row) => `${formatLabel(row[labelKey])}: ${Number(row.count) || 0}`)
     .join('; ')
 
-  return <Paper className="report-card chart-card" elevation={0}>
-    <Typography className="panel-title">{title}</Typography>
+  return <Paper elevation={0} sx={{ ...reportCardSx, minHeight: 260 }}>
+    <Typography sx={panelTitleSx}>{title}</Typography>
     {rows.length
-      ? <Box className="chart-rows" role="img" aria-label={`${title}: ${chartDescription}`}>
+      ? <Box sx={{ display: 'grid', gap: '18px', mt: '25px' }} role="img" aria-label={`${title}: ${chartDescription}`}>
         {rows.map((row) => {
           const count = Number(row.count) || 0
           const width = `${Math.max(count > 0 ? 4 : 0, (count / maxCount) * 100)}%`
-          return <Box className="chart-row" key={row[labelKey]}>
-            <Box className="chart-row-heading">
-              <Typography className="chart-label">{formatLabel(row[labelKey])}</Typography>
-              <Typography className="chart-count">{count}</Typography>
+          return <Box key={row[labelKey]}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: '12px', mb: '7px' }}>
+              <Typography sx={{ color: '#647087', fontSize: 12, textTransform: 'capitalize' }}>{formatLabel(row[labelKey])}</Typography>
+              <Typography sx={{ color: colors.ink, fontSize: 12, fontWeight: 700 }}>{count}</Typography>
             </Box>
-            <Box className="chart-track" aria-hidden="true">
-              <Box className="chart-bar" sx={{ width, backgroundColor: color }} />
+            <Box sx={{ height: 9, overflow: 'hidden', borderRadius: '6px', bgcolor: '#edf1f6' }} aria-hidden="true">
+              <Box sx={{ width, height: '100%', minWidth: 0, borderRadius: 'inherit', transition: 'width .25s ease', bgcolor: color }} />
             </Box>
           </Box>
         })}
       </Box>
-      : <Typography className="muted-cell chart-empty">{emptyMessage}</Typography>}
+      : <Typography sx={{ color: '#6f7a8f', fontSize: 11, mt: '25px' }}>{emptyMessage}</Typography>}
   </Paper>
 }
 
@@ -48,29 +55,29 @@ export default function DashboardPage() {
   const breachedTickets = breachedRows.reduce((total, row) => total + (Number(row.count) || 0), 0)
   const hasMetrics = totalTickets > 0 || breachedTickets > 0 || Number(data.averageResolutionHours) > 0
 
-  return <Box className="content-wrap">
-    <Box className="welcome-row">
+  return <Box sx={pageContentSx}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', mb: '24px' }}>
       <Box>
-        <Typography className="section-title">Service overview</Typography>
-        <Typography className="section-subtitle">A live view of ticket volume and SLA performance.</Typography>
+        <Typography sx={sectionTitleSx}>Service overview</Typography>
+        <Typography sx={sectionSubtitleSx}>A live view of ticket volume and SLA performance.</Typography>
       </Box>
     </Box>
     {!hasMetrics && <EmptyState>No report data is available yet.</EmptyState>}
-    <Box className="report-grid dashboard-metrics">
-      <Paper className="report-card summary-card" elevation={0}>
-        <Typography className="metric-label">Total tickets</Typography>
-        <Typography className="report-value">{totalTickets}</Typography>
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '16px', mb: '16px' }}>
+      <Paper elevation={0} sx={{ ...reportCardSx, minHeight: 120 }}>
+        <Typography sx={{ color: '#8590a3', fontSize: 11, fontWeight: 600 }}>Total tickets</Typography>
+        <Typography sx={{ font: "700 26px 'Plus Jakarta Sans'", mt: '12px' }}>{totalTickets}</Typography>
       </Paper>
-      <Paper className="report-card summary-card" elevation={0}>
-        <Typography className="metric-label">Average resolution</Typography>
-        <Typography className="report-value">{Number(data.averageResolutionHours || 0).toFixed(2)} hours</Typography>
+      <Paper elevation={0} sx={{ ...reportCardSx, minHeight: 120 }}>
+        <Typography sx={{ color: '#8590a3', fontSize: 11, fontWeight: 600 }}>Average resolution</Typography>
+        <Typography sx={{ font: "700 26px 'Plus Jakarta Sans'", mt: '12px' }}>{Number(data.averageResolutionHours || 0).toFixed(2)} hours</Typography>
       </Paper>
-      <Paper className="report-card summary-card" elevation={0}>
-        <Typography className="metric-label">Breached tickets</Typography>
-        <Typography className="report-value">{breachedTickets}</Typography>
+      <Paper elevation={0} sx={{ ...reportCardSx, minHeight: 120 }}>
+        <Typography sx={{ color: '#8590a3', fontSize: 11, fontWeight: 600 }}>Breached tickets</Typography>
+        <Typography sx={{ font: "700 26px 'Plus Jakarta Sans'", mt: '12px' }}>{breachedTickets}</Typography>
       </Paper>
     </Box>
-    <Box className="report-grid dashboard-charts">
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
       <BarChart
         title="Tickets by status"
         rows={statusRows}
