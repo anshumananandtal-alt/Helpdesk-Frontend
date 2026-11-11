@@ -40,6 +40,16 @@ export function getAllowedNextStatuses(ticket, user) {
   const nextStatuses = STATUS_TRANSITIONS[ticket?.status] || []
   const role = normalizeRole(user?.role)
 
+  if (role === 'customer') {
+    const creatorId = String(ticket?.creator?._id || ticket?.creator || '')
+    const userId = String(user?.id || user?._id || '')
+    if (!userId || creatorId !== userId) return []
+    if (ticket.status === 'waiting_on_customer') {
+      return nextStatuses.filter((status) => status === 'in_progress')
+    }
+    return nextStatuses.filter((status) => status === 'closed' || status === 'reopened')
+  }
+
   return nextStatuses.filter((status) => {
     if (status === 'closed' || status === 'reopened') {
       return canCloseOrReopen(ticket, user)

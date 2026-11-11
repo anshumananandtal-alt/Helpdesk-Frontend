@@ -25,6 +25,12 @@ describe('ticket status permissions', () => {
     expect(getAllowedNextStatuses(ticket, { role: 'agent', id: 'agent-1' })).toEqual([])
   })
 
+  it('lets only the ticket owner resume a waiting ticket', () => {
+    const ticket = { status: 'waiting_on_customer', creator: 'customer-1' }
+    expect(getAllowedNextStatuses(ticket, { role: 'customer', id: 'customer-1' })).toEqual(['in_progress'])
+    expect(getAllowedNextStatuses(ticket, { role: 'customer', id: 'customer-2' })).toEqual([])
+  })
+
   it('offers no status changes for a closed ticket', () => {
     expect(getAllowedNextStatuses({ status: 'closed' }, { role: 'admin' })).toEqual([])
   })

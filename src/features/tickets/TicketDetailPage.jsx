@@ -50,7 +50,7 @@ function auditSummary(entry) {
   return `${entry.field} changed from ${oldValue} to ${newValue}`
 }
 
-function TicketAttachment({ ticketId, fileName, index, onDelete, deleting }) {
+function TicketAttachment({ ticketId, fileName, index, onDelete, canDelete, deleting }) {
   const [attachmentUrl, setAttachmentUrl] = useState('')
   const [isImage, setIsImage] = useState(false)
   const [error, setError] = useState('')
@@ -88,9 +88,9 @@ function TicketAttachment({ ticketId, fileName, index, onDelete, deleting }) {
       <Typography>{attachmentName}</Typography>
       <Link href={attachmentUrl} target="_blank" rel="noreferrer">Open</Link>
       <Link href={attachmentUrl} download={attachmentName}>Download</Link>
-      <IconButton color="error" aria-label={`Delete ${attachmentName}`} title={`Delete ${attachmentName}`} disabled={deleting} onClick={() => onDelete(index)}>
+      {canDelete && <IconButton color="error" aria-label={`Delete ${attachmentName}`} title={`Delete ${attachmentName}`} disabled={deleting} onClick={() => onDelete(index)}>
         <DeleteIcon />
-      </IconButton>
+      </IconButton>}
     </Stack>
   }
 
@@ -103,9 +103,9 @@ function TicketAttachment({ ticketId, fileName, index, onDelete, deleting }) {
         sx={{ display: 'block', maxWidth: '100%', maxHeight: 320, objectFit: 'contain' }}
       />
     </Link>
-    <IconButton color="error" aria-label={`Delete ${attachmentName}`} title={`Delete ${attachmentName}`} disabled={deleting} onClick={() => onDelete(index)}>
+    {canDelete && <IconButton color="error" aria-label={`Delete ${attachmentName}`} title={`Delete ${attachmentName}`} disabled={deleting} onClick={() => onDelete(index)}>
       <DeleteIcon />
-    </IconButton>
+    </IconButton>}
   </Stack>
 }
 
@@ -262,6 +262,7 @@ export default function TicketDetailPage() {
               fileName={fileName}
               index={index}
               onDelete={(attachmentIndex) => attachmentDeleteMutation.mutate(attachmentIndex)}
+              canDelete={ticket.status !== 'closed'}
               deleting={attachmentDeleteMutation.isPending}
             />
           ))}
@@ -280,7 +281,7 @@ export default function TicketDetailPage() {
         <Typography>Change status:</Typography>
         {allowedStatuses.map((status) => <Button key={status} variant="outlined" disabled={ticketMutation.isPending} onClick={() => ticketMutation.mutate({ status })}>{displayStatus(status)}</Button>)}
       </Stack>}
-      <Stack direction="column" spacing={1} sx={{ mt: 2, flexWrap: 'wrap' }}>
+      {ticket.status !== 'closed' && (!isCustomer || ticket.status === 'waiting_on_customer') && <Stack direction="column" spacing={1} sx={{ mt: 2, flexWrap: 'wrap' }}>
         <Typography sx={panelTitleSx} variant="h6">Attach files to this ticket</Typography>
         <Button component="label" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
           Choose files
@@ -301,7 +302,7 @@ export default function TicketDetailPage() {
           {fileUploadMutation.isPending ? 'Uploading…' : 'Upload files'}
         </Button>
         {fileUploadMutation.isError && <Alert severity="error" role="alert">{fileUploadMutation.error.message}</Alert>}
-      </Stack>
+      </Stack>}
       {isAdmin && <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 4, flexWrap: 'wrap' }}useFlexGap>
         <FormControl size="small" sx={{ minWidth: 240 }}>
           <InputLabel id="ticket-assignee-label">Assign to agent</InputLabel>
@@ -309,7 +310,7 @@ export default function TicketDetailPage() {
             labelId="ticket-assignee-label"
             label="Assign to agent"
             value={currentAssigneeId}
-            disabled={assignMutation.isPending || usersQuery.isPending || usersQuery.isError}
+            disabled={ticket.status === 'closed' || assignMutation.isPending || usersQuery.isPending || usersQuery.isError}
             onChange={(event) => assignMutation.mutate(event.target.value || null)}
           >
             <MenuItem value="">Unassigned</MenuItem>
@@ -339,14 +340,14 @@ export default function TicketDetailPage() {
         <Typography sx={mutedCellSx}>{comment.createdAt ? new Date(comment.createdAt).toLocaleString() : ''}</Typography>
       </Box>)}
       {commentMutation.isError && <Alert severity="error" role="alert">{commentMutation.error.message}</Alert>}
-      <Stack component="form" spacing={1.5} mt={2} onSubmit={handleSubmit((values) => commentMutation.mutate(values))} noValidate>
+      {ticket.status !== 'closed' && <Stack component="form" spacing={1.5} mt={2} onSubmit={handleSubmit((values) => commentMutation.mutate(values))} noValidate>
         {isStaff && <TextField select label="Message type" value={commentType} onChange={(event) => setCommentType(event.target.value)}>
           <MenuItem value="public">Public reply</MenuItem>
           <MenuItem value="internal">Internal note</MenuItem>
         </TextField>}
         <TextField label={commentType === 'internal' ? 'Add an internal note' : 'Add a public comment'} multiline minRows={3} {...register('text')} error={Boolean(errors.text)} helperText={errors.text?.message} />
         <Box><Button type="submit" variant="contained" disabled={commentMutation.isPending || commentsQuery.isError}>{commentMutation.isPending ? 'Posting…' : commentType === 'internal' ? 'Add internal note' : 'Post comment'}</Button></Box>
-      </Stack>
+      </Stack>}
 
       {isStaff && <>
         <Divider sx={{ my: 3 }} />
