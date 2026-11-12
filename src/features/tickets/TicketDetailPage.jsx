@@ -10,7 +10,7 @@ import { z } from 'zod'
 import { getTicketAudit } from '../../api/audit.api'
 import { createComment, getComments } from '../../api/comments.api'
 import { deleteTicketAttachment, getTicket, getTicketAttachment, updateTicket } from '../../api/tickets.api'
-import { getUsers } from '../../api/users.api'
+import { getAgents } from '../../api/users.api'
 import { EmptyState, ErrorState, LoadingState } from '../../components/common/DataState'
 import { canAssign, canViewInternalNotes, getAllowedNextStatuses, normalizeRole } from '../../lib/permissions'
 import { colors } from '../../app/theme'
@@ -123,8 +123,8 @@ export default function TicketDetailPage() {
   const isStaff = canViewInternalNotes(user)
   const isOwner = ticket && referenceId(ticket.creator) === referenceId(user?.id || user?._id)
   const usersQuery = useQuery({
-    queryKey: ['admin', 'users'],
-    queryFn: getUsers,
+    queryKey: ['admin', 'agents'],
+    queryFn: getAgents,
     enabled: isAdmin,
   })
   const commentsQuery = useQuery({
@@ -211,9 +211,7 @@ export default function TicketDetailPage() {
   const publicComments = comments.filter((comment) => !comment.isInternal)
   const internalNotes = isStaff ? comments.filter((comment) => comment.isInternal) : []
   const mutationError = ticketMutation.error || assignMutation.error
-  const availableAgents = (usersQuery.data || []).filter((candidate) =>
-    candidate.role === 'agent' && candidate.isActive,
-  )
+  const availableAgents = (usersQuery.data || [])?.filter((candidate) => candidate.isActive)
   const currentAssigneeId = referenceId(ticket.assignee)
   const currentAssigneeUnavailable = ticket.assignee &&
     !availableAgents.some((candidate) => referenceId(candidate) === currentAssigneeId)

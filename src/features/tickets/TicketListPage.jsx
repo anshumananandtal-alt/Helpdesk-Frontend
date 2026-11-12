@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, Box, Button, Chip, FormControl, InputLabel, MenuItem, Pagination, Paper, Select, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from '@mui/material'
 import { useSelector } from 'react-redux'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { getTickets } from '../../api/tickets.api'
-import { getUsers } from '../../api/users.api'
+import { getAgents } from '../../api/users.api'
 import { EmptyState, ErrorState, LoadingState } from '../../components/common/DataState'
 import { normalizeRole } from '../../lib/permissions'
 import { colors } from '../../app/theme'
@@ -28,23 +28,22 @@ function displayStatus(status) {
 export default function TicketListPage() {
   const user = useSelector((state) => state.auth.user)
   const navigate = useNavigate()
-  const isStaff = ['agent', 'admin'].includes(normalizeRole(user?.role))
+  const isStaff = normalizeRole(user?.role) === 'agent' || normalizeRole(user?.role) === 'admin'
   const isAdmin = normalizeRole(user?.role) === 'admin'
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '')
-  const status = searchParams.get('status') || ''
-  const priority = searchParams.get('priority') || ''
-  const assignee = searchParams.get('assignee') || ''
-  const breached = searchParams.get('breached') || ''
-  const requestedPage = Number.parseInt(searchParams.get('page') || '1', 10)
-  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [priority, setPriority] = useState('')
+  const [assignee, setAssignee] = useState('')
+  const [breached, setBreached] = useState('')
   const queryParams = {
     page,
     limit: pageSize,
-    ...(searchParams.get('search') ? { search: searchParams.get('search') } : {}),
+    ...(search ? { search } : {}),
     ...(status ? { status } : {}),
     ...(priority ? { priority } : {}),
-    ...(isStaff && assignee ? { assignee } : {}),
+    ...(isStaff ? { assignee: user?.role === 'agent' ?  user?._id : assignee } : {}),
     ...(breached ? { breached } : {}),
   }
   const ticketsQuery = useQuery({
@@ -53,29 +52,21 @@ export default function TicketListPage() {
   })
   const usersQuery = useQuery({
     queryKey: ['admin', 'users'],
-    queryFn: getUsers,
+    queryFn: getAgents,
     enabled: isAdmin,
   })
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      if (searchInput !== (searchParams.get('search') || '')) {
-        const next = new URLSearchParams(searchParams)
-        if (searchInput.trim()) next.set('search', searchInput.trim())
-        else next.delete('search')
-        next.delete('page')
-        setSearchParams(next, { replace: true })
-      }
+      setSearch(searchInput.trim())
+      setPage(1)
     }, 300)
     return () => window.clearTimeout(timer)
-  }, [searchInput, searchParams, setSearchParams])
+  }, [searchInput])
 
-  const setFilter = (key, value) => {
-    const next = new URLSearchParams(searchParams)
-    if (value) next.set(key, value)
-    else next.delete(key)
-    if (key !== 'page') next.delete('page')
-    setSearchParams(next, { replace: true })
+  const updateFilter = (setFilterValue, value) => {
+    setFilterValue(value)
+    setPage(1)
   }
 
   const tickets = ticketsQuery.data?.tickets || []
@@ -96,14 +87,14 @@ export default function TicketListPage() {
         <TextField size="medium" label="Search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} sx={{ width: 260, '@media (max-width: 650px)': { width: '100%' } }} />
         <FormControl size="medium" sx={{ minWidth: 135, '@media (max-width: 650px)': { flex: 1, minWidth: 0 } }}>
           <InputLabel>Status</InputLabel>
-          <Select label="Status" value={status} onChange={(event) => setFilter('status', event.target.value)}>
+          <Select aria-label="Status" label="Status" value={status} onChange={(event) => updateFilter(setStatus, event.target.value)}>
             <MenuItem value="">All statuses</MenuItem>
             {statusOptions.map((item) => <MenuItem key={item} value={item}>{displayStatus(item)}</MenuItem>)}
           </Select>
         </FormControl>
         <FormControl size="medium" sx={{ minWidth: 135, '@media (max-width: 650px)': { flex: 1, minWidth: 0 } }}>
           <InputLabel>Priority</InputLabel>
-          <Select label="Priority" value={priority} onChange={(event) => setFilter('priority', event.target.value)}>
+          <Select aria-label="Priority" label="Priority" value={priority} onChange={(event) => updateFilter(setPriority, event.target.value)}>
             <MenuItem value="">All priorities</MenuItem>
             {priorityOptions.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
           </Select>
@@ -111,14 +102,14 @@ export default function TicketListPage() {
         {isAdmin && <FormControl size="medium" sx={{ minWidth: 135, '@media (max-width: 650px)': { flex: 1, minWidth: 0 } }}>
           <InputLabel>Assignee</InputLabel>
           <Select
+            aria-label="Assignee"
             label="Assignee"
             value={assignee}
             disabled={usersQuery.isPending || usersQuery.isError}
-            onChange={(event) => setFilter('assignee', event.target.value)}
+            onChange={(event) => updateFilter(setAssignee, event.target.value)}
           >
             <MenuItem value="">All assignees</MenuItem>
             {(usersQuery.data || [])
-              .filter((candidate) => candidate.role === 'agent' && candidate.isActive)
               .map((candidate) => <MenuItem key={candidate._id ?? candidate.id} value={String(candidate._id ?? candidate.id)}>
                 {candidate.name || candidate.email}
               </MenuItem>)}
@@ -129,7 +120,7 @@ export default function TicketListPage() {
         </Alert>}
         <FormControl size="medium" sx={{ minWidth: 135, '@media (max-width: 650px)': { flex: 1, minWidth: 0 } }}>
           <InputLabel>SLA</InputLabel>
-          <Select label="SLA" value={breached} onChange={(event) => setFilter('breached', event.target.value)}>
+          <Select aria-label="SLA" label="SLA" value={breached} onChange={(event) => updateFilter(setBreached, event.target.value)}>
             <MenuItem value="">Any</MenuItem>
             <MenuItem value="true">Breached</MenuItem>
             <MenuItem value="false">On track</MenuItem>
@@ -202,7 +193,7 @@ export default function TicketListPage() {
         </TableContainer>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: '14px 22px', borderTop: `1px solid ${colors.line}`, '@media (max-width: 700px)': { flexWrap: 'wrap' }, '@media (max-width: 650px)': { p: '12px 15px' } }}>
           <Typography sx={mutedCellSx}>Page {page} of {totalPages}</Typography>
-          <Pagination count={totalPages} page={page} onChange={(_, nextPage) => setFilter('page', String(nextPage))} />
+          <Pagination count={totalPages} page={page} onChange={(_, nextPage) => setPage(nextPage)} />
         </Stack>
       </>}
     </Paper>
