@@ -7,6 +7,7 @@ export const ticketEndpoints = {
   list: '/tickets',
   detail: (id) => `/tickets/${id}`,
   attachment: (id, index) => `/tickets/${id}/images/${index}`,
+  closed: '/tickets/closed',
   deleteAttachment: (id, index) => `/tickets/${id}/images/${index}`,
   create: '/tickets',
   update: (id) => `/tickets/${id}`,

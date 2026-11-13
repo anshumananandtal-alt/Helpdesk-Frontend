@@ -9,7 +9,7 @@ import sessionReducer from '../../auth/sessionSlice'
 import { getTicketAudit } from '../../api/audit.api'
 import { getComments } from '../../api/comments.api'
 import { deleteTicketAttachment, getTicket, getTicketAttachment, updateTicket } from '../../api/tickets.api'
-import { getUsers } from '../../api/users.api'
+import { getAgents } from '../../api/users.api'
 import TicketDetailPage from './TicketDetailPage'
 
 vi.mock('../../api/audit.api', () => ({ getTicketAudit: vi.fn() }))
@@ -23,7 +23,7 @@ vi.mock('../../api/tickets.api', () => ({
   deleteTicketAttachment: vi.fn(),
   updateTicket: vi.fn(),
 }))
-vi.mock('../../api/users.api', () => ({ getUsers: vi.fn() }))
+vi.mock('../../api/users.api', () => ({ getAgents: vi.fn() }))
 
 describe('TicketDetailPage', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -45,10 +45,9 @@ describe('TicketDetailPage', () => {
     })
     getComments.mockResolvedValue([])
     getTicketAudit.mockResolvedValue([])
-    getUsers.mockResolvedValue([
+    getAgents.mockResolvedValue([
       { _id: 'agent-1', name: 'Agent One', email: 'agent@example.com', role: 'agent', isActive: true },
       { _id: 'agent-2', name: 'Inactive Agent', email: 'inactive@example.com', role: 'agent', isActive: false },
-      { _id: 'customer-2', name: 'Customer Two', email: 'customer@example.com', role: 'customer', isActive: true },
     ])
     updateTicket.mockResolvedValue({ _id: 'ticket-1', assignee: { _id: 'agent-1' }, version: 5 })
     const store = configureStore({
@@ -165,6 +164,49 @@ describe('TicketDetailPage', () => {
     queryClient.clear()
   })
 
+  it('links to the related ticket when one is present', async () => {
+    const relatedTicketTitle = 'Original request with a long title that should be truncated in the details panel'
+    getTicket.mockResolvedValue({
+      _id: 'ticket-1',
+      title: 'Follow-up request',
+      description: 'Details',
+      status: 'open',
+      priority: 'low',
+      creator: 'customer-1',
+      relatedTo: { _id: 'ticket-previous', title: relatedTicketTitle },
+      version: 1,
+    })
+    getComments.mockResolvedValue([])
+    const store = configureStore({
+      reducer: { auth: sessionReducer },
+      preloadedState: {
+        auth: {
+          isAuthenticated: true,
+          token: 'customer-token',
+          user: { id: 'customer-1', role: 'customer' },
+        },
+      },
+    })
+    const queryClient = new QueryClient()
+
+    render(
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/tickets/ticket-1']}>
+            <Routes><Route path="/tickets/:id" element={<TicketDetailPage />} /></Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      </Provider>,
+    )
+
+    const relatedTicketLink = await screen.findByRole('link', { name: relatedTicketTitle })
+    expect(relatedTicketLink).toHaveAttribute('href', '/tickets/ticket-previous')
+    expect(relatedTicketLink).toHaveStyle({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })
+    fireEvent.mouseOver(relatedTicketLink)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(relatedTicketTitle)
+    queryClient.clear()
+  })
+
   it('lets the ticket owner resume a ticket waiting on them', async () => {
     getTicket.mockResolvedValue({
       _id: 'ticket-1',
@@ -199,7 +241,9 @@ describe('TicketDetailPage', () => {
       </Provider>,
     )
 
-    fireEvent.click(await screen.findByRole('button', { name: 'in progress' }))
+    const statusSelect = await screen.findByRole('combobox', { name: 'Change Status' })
+    fireEvent.mouseDown(statusSelect)
+    fireEvent.click(await screen.findByRole('option', { name: 'in progress' }))
     await waitFor(() => expect(updateTicket).toHaveBeenCalledWith('ticket-1', {
       status: 'in_progress',
       version: 2,
@@ -268,7 +312,7 @@ describe('TicketDetailPage', () => {
       { _id: 'internal-1', text: 'Previous staff note', isInternal: true },
     ])
     getTicketAudit.mockResolvedValue([])
-    getUsers.mockResolvedValue([
+    getAgents.mockResolvedValue([
       { _id: 'agent-1', name: 'Agent One', email: 'agent@example.com', role: 'agent', isActive: true },
     ])
     getTicketAttachment.mockResolvedValue(new Blob(['document'], { type: 'application/pdf' }))
@@ -301,7 +345,7 @@ describe('TicketDetailPage', () => {
     expect(await screen.findByText('Previous reply')).toBeInTheDocument()
     expect(screen.getByText('Previous staff note')).toBeInTheDocument()
     expect(await screen.findByText('Attachment 1.pdf')).toBeInTheDocument()
-    await waitFor(() => expect(queryClient.getQueryState(['admin', 'users'])?.status).toBe('success'))
+    await waitFor(() => expect(queryClient.getQueryState(['admin', 'agents'])?.status).toBe('success'))
     expect(screen.getByRole('combobox', { name: 'Assign to agent' })).toHaveAttribute('aria-disabled', 'true')
     expect(screen.queryByRole('button', { name: 'Upload files' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Add a public comment')).not.toBeInTheDocument()

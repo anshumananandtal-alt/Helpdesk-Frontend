@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { Alert, Box, Button, Chip, Divider, FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Stack, TextField, Typography, Link } from '@mui/material'
+import { Alert, Box, Button, Chip, Divider, FormControl, IconButton, InputLabel, MenuItem, Paper, Select, Stack, TextField, Tooltip, Typography, Link } from '@mui/material'
 import { useForm } from 'react-hook-form'
 import { useSelector } from 'react-redux'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom'
 import { z } from 'zod'
 import { getTicketAudit } from '../../api/audit.api'
 import { createComment, getComments } from '../../api/comments.api'
@@ -40,7 +41,7 @@ function slaLabel(ticket) {
 }
 
 function referenceId(value) {
-  return String(value?._id || value || '')
+  return String(value?._id || value?.id || value || '')
 }
 
 function auditSummary(entry) {
@@ -207,6 +208,8 @@ export default function TicketDetailPage() {
   }
 
   const allowedStatuses = getAllowedNextStatuses(ticket, user)
+  const relatedTicketId = referenceId(ticket.relatedTo)
+  const relatedTicketLabel = ticket.relatedTo?.title || `Ticket #${relatedTicketId.slice(-6)}`
   const comments = Array.isArray(commentsQuery.data) ? commentsQuery.data : []
   const publicComments = comments.filter((comment) => !comment.isInternal)
   const internalNotes = isStaff ? comments.filter((comment) => comment.isInternal) : []
@@ -217,7 +220,7 @@ export default function TicketDetailPage() {
     !availableAgents.some((candidate) => referenceId(candidate) === currentAssigneeId)
 
   return <Box sx={narrowContentSx}>
-    <Button onClick={() => navigate('/tickets')}>← Back to tickets</Button>
+    <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>Back</Button>
     <Paper elevation={0} sx={formPanelSx}>
       <Box
         sx={{
@@ -271,14 +274,33 @@ export default function TicketDetailPage() {
         <Typography><Box component="strong">Requester</Box> {ticket.creator?.name || ticket.creator?.email || referenceId(ticket.creator)}</Typography>
         <Typography><Box component="strong">Assignee</Box> {ticket.assignee?.name || ticket.assignee?.email || (ticket.assignee ? referenceId(ticket.assignee) : 'Unassigned')}</Typography>
         <Typography><Box component="strong">Category</Box> {ticket.category || '—'}</Typography>
+        {relatedTicketId && <Typography><Box component="strong">Related ticket</Box>
+          <Tooltip title={relatedTicketLabel}>
+            <Link
+              component={RouterLink}
+              to={`/tickets/${relatedTicketId}`}
+              sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' ,ml: 1 }}
+            >
+              {relatedTicketLabel}
+            </Link>
+          </Tooltip>
+        </Typography>}
         <Typography><Box component="strong">Version</Box> {ticket.version}</Typography>
         <Typography><Box component="strong">Updated</Box> {ticket.updatedAt ? new Date(ticket.updatedAt).toLocaleString() : '—'}</Typography>
       </Box>
 
-      {allowedStatuses.length > 0 && <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', alignItems: 'center' }} useFlexGap>
-        <Typography>Change status:</Typography>
-        {allowedStatuses.map((status) => <Button key={status} variant="outlined" disabled={ticketMutation.isPending} onClick={() => ticketMutation.mutate({ status })}>{displayStatus(status)}</Button>)}
-      </Stack>}
+      {allowedStatuses.length > 0 && <FormControl size="small" sx={{ mt: 2, minWidth: 240 }}>
+        <InputLabel id="ticket-status-label">Change Status</InputLabel>
+        <Select
+          labelId="ticket-status-label"
+          label="Change Status"
+          value=""
+          disabled={ticketMutation.isPending}
+          onChange={(event) => ticketMutation.mutate({ status: event.target.value })}
+        >
+          {allowedStatuses.map((status) => <MenuItem key={status} value={status}>{displayStatus(status)}</MenuItem>)}
+        </Select>
+      </FormControl>}
       {ticket.status !== 'closed' && (!isCustomer || ticket.status === 'waiting_on_customer') && <Stack direction="column" spacing={1} sx={{ mt: 2, flexWrap: 'wrap' }}>
         <Typography sx={panelTitleSx} variant="h6">Attach files to this ticket</Typography>
         <Button component="label" variant="outlined" sx={{ alignSelf: 'flex-start' }}>

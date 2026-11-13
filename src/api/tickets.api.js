@@ -98,3 +98,8 @@ export async function deleteTicket(id) {
   const { data } = await client.delete(ticketEndpoints.remove(id))
   return data
 }
+
+export async function getClosedTickets(){
+  const { data } = await client.get(ticketEndpoints.closed)
+  return data
+}

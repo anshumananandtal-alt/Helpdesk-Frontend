@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Box, Button, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
-import { createTicket } from '../../api/tickets.api'
+import { createTicket, getClosedTickets } from '../../api/tickets.api'
 import { colors } from '../../app/theme'
 
 const pageContentSx = { maxWidth: 920, mx: 'auto', p: '40px clamp(25px, 4vw, 56px)', '@media (max-width: 700px)': { p: '25px 15px' } }
@@ -17,6 +17,7 @@ const schema = z.object({
   description: z.string().trim().min(10, 'Use at least 10 characters for the description.'),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
   category: z.string().trim().optional(),
+  relatedTo: z.string().optional(),
 })
 
 export default function CreateTicketPage() {
@@ -24,11 +25,18 @@ export default function CreateTicketPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [selectedFiles, setSelectedFiles] = useState([])
+  const closedTicketsQuery = useQuery({
+    queryKey: ['tickets', 'closed'],
+    queryFn: getClosedTickets,
+  })
+  const closedTickets = Array.isArray(closedTicketsQuery.data)
+    ? closedTicketsQuery.data
+    : closedTicketsQuery.data?.tickets || []
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ resolver: zodResolver(schema), defaultValues: { priority: 'medium', category: '' } })
+  } = useForm({ resolver: zodResolver(schema), defaultValues: { priority: 'medium', category: '', relatedTo: '' } })
   const mutation = useMutation({
     mutationFn: createTicket,
     onSuccess: (ticket) => {
@@ -38,13 +46,17 @@ export default function CreateTicketPage() {
   })
 
   const handleSubmitTicket = (values) => {
+    const payload = values.relatedTo
+      ? values
+      : Object.fromEntries(Object.entries(values).filter(([key]) => key !== 'relatedTo'))
+
     if (!selectedFiles.length) {
-      mutation.mutate(values)
+      mutation.mutate(payload)
       return
     }
 
     const formData = new FormData()
-    Object.entries(values).forEach(([key, value]) => {
+    Object.entries(payload).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
         formData.append(key, value)
       }
@@ -61,6 +73,19 @@ export default function CreateTicketPage() {
         <TextField label="Title" required fullWidth {...register('title')} error={Boolean(errors.title)} helperText={errors.title?.message} />
         <TextField label="Description" required multiline minRows={5} fullWidth {...register('description')} error={Boolean(errors.description)} helperText={errors.description?.message} />
         <TextField label="Category" fullWidth {...register('category')} error={Boolean(errors.category)} helperText={errors.category?.message} />
+        <TextField label="Related To" select fullWidth defaultValue="" {...register('relatedTo')} disabled={closedTicketsQuery.isPending || closedTicketsQuery.isError}>
+          <MenuItem value="">None</MenuItem>
+          {closedTickets.map((ticket) => {
+            const ticketId = ticket._id || ticket.id
+            return ticketId && <MenuItem key={ticketId} value={ticketId}>
+              {ticket.title || `Ticket #${String(ticketId).slice(-6)}`}
+            </MenuItem>
+          })}
+        </TextField>
+        {closedTicketsQuery.isError && <Alert severity="error" role="alert">
+          Unable to load closed tickets: {closedTicketsQuery.error.message}
+          <Button size="small" onClick={() => closedTicketsQuery.refetch()}>Retry</Button>
+        </Alert>}
         <TextField label="Priority" select defaultValue="medium" {...register('priority')} error={Boolean(errors.priority)} helperText={errors.priority?.message}>
           {['low', 'medium', 'high', 'urgent'].map((priority) => <MenuItem key={priority} value={priority}>{priority}</MenuItem>)}
         </TextField>
